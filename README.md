@@ -4,7 +4,9 @@
 [![Visual Studio Marketplace Downloads](https://img.shields.io/visual-studio-marketplace/d/junaire.contract-source-viewer?style=flat-square)](https://marketplace.visualstudio.com/items?itemName=junaire.contract-source-viewer)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square)](LICENSE)
 
-A powerful VSCode extension that allows you to fetch and view smart contract source code directly from blockchain explorers. Perfect for developers, auditors, and anyone working with smart contracts.
+A simple VSCode extension that allows you to fetch and view smart contract source code directly from blockchain explorers. Perfect for developers, auditors, and anyone working with smart contracts.
+
+![Demo](images/demo.gif)
 
 ## ✨ Features
 
