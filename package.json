@@ -2,7 +2,7 @@
   "name": "contract-source-viewer",
   "displayName": "Contract Source Viewer",
   "description": "Fetch and view smart contract source code from blockchain explorers with syntax highlighting",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "publisher": "junaire",
   "author": {
     "name": "Jun Zhang",
