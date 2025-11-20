@@ -17,6 +17,7 @@ export async function showInputDialog(): Promise<UserInput | undefined> {
         { label: 'Base (8453)', id: '8453' },
         { label: 'Arbitrum (42161)', id: '42161' },
         { label: 'Polygon (137)', id: '137' },
+        { label: 'Abstract (2741)', id: '2741' },
         { label: 'Optimism (10)', id: '10' },
         { label: 'Avalanche (43114)', id: '43114' },
         { label: 'Fantom (250)', id: '250' },
