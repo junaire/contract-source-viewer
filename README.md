@@ -10,7 +10,7 @@ A simple VSCode extension that allows you to fetch and view smart contract sourc
 
 ## ✨ Features
 
-- 🔍 **Multi-Chain Support**: Fetch contracts from 8 major blockchains
+- 🔍 **Multi-Chain Support**: Fetch contracts from 22 EVM networks
 - 📄 **Smart Parsing**: Handles both single-file and multi-file Solidity contracts
 - 🎨 **Syntax Highlighting**: Full Solidity syntax highlighting with VSCode's built-in support
 - 📁 **Project Structure**: Automatically creates proper folder structure for complex contracts
@@ -29,16 +29,19 @@ A simple VSCode extension that allows you to fetch and view smart contract sourc
 
 ## 🌐 Supported Networks
 
-| Network | Chain ID | Example Contract |
-|---------|----------|------------------|
-| **Ethereum** | 1 | `0xA0b86a33E6a5a5d7a2f...` |
-| **BSC** | 56 | `0xD89C46F8ee42d3078E6...` |
-| **Polygon** | 137 | `0x8f3Cf7ad23Cd3CaDbD9...` |
-| **Arbitrum** | 42161 | `0x912CE59144191C1204E...` |
-| **Optimism** | 10 | `0x4200000000000000000...` |
-| **Base** | 8453 | `0x833589fCD6eDb6E08f4...` |
-| **Avalanche** | 43114 | `0xB31f66AA3C1e785363F...` |
-| **Fantom** | 250 | `0x21be370D5312f44cB42...` |
+| Network | Chain ID | Network | Chain ID |
+|---------|----------|---------|----------|
+| Ethereum | 1 | BSC | 56 |
+| Polygon | 137 | Optimism | 10 |
+| Arbitrum One | 42161 | Avalanche | 43114 |
+| Base | 8453 | Linea | 59144 |
+| opBNB | 204 | Blast | 81457 |
+| Mantle | 5000 | World Chain | 480 |
+| Unichain | 130 | Sonic | 146 |
+| Abstract | 2741 | Berachain | 80094 |
+| Monad | 143 | Stable | 988 |
+| Plasma | 9745 | Robinhood Chain | 4663 |
+| Sepolia Testnet | 11155111 | Base Sepolia | 84532 |
 
 
 ### Development Setup

@@ -3,6 +3,7 @@ import { ParsedSource } from './sourceParser';
 import * as os from 'os';
 import * as fs from 'fs';
 import * as path from 'path';
+import { supportedChains } from './chains';
 
 export interface UserInput {
     chainId: string;
@@ -10,20 +11,7 @@ export interface UserInput {
 }
 
 export async function showInputDialog(): Promise<UserInput | undefined> {
-
-    const chains = [
-        { label: 'Ethereum (1)', id: '1' },
-        { label: 'BSC (56)', id: '56' },
-        { label: 'Base (8453)', id: '8453' },
-        { label: 'Arbitrum (42161)', id: '42161' },
-        { label: 'Polygon (137)', id: '137' },
-        { label: 'Abstract (2741)', id: '2741' },
-        { label: 'Optimism (10)', id: '10' },
-        { label: 'Avalanche (43114)', id: '43114' },
-        { label: 'Fantom (250)', id: '250' },
-    ];
-
-    const selectedChain = await vscode.window.showQuickPick(chains, {
+    const selectedChain = await vscode.window.showQuickPick(supportedChains, {
         placeHolder: 'Select a blockchain network',
     });
 
