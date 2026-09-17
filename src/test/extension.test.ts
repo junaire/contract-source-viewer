@@ -173,14 +173,32 @@ suite('Contract source reliability', () => {
 	});
 
 	test('stores cached source in the system temp directory', () => {
-		const cacheDirectory = getContractCacheDirectory(
+		const blockscoutCacheDirectory = getContractCacheDirectory(
+			'Blockscout',
 			'8453',
 			'0x13375B79F3F1651EA317956686D2DCDF69E98AB1',
 		);
+		const blockscanCacheDirectory = getContractCacheDirectory(
+			'Blockscan',
+			'1',
+			'0x0000000000000000000000000000000000000000',
+		);
 
 		assert.strictEqual(
-			cacheDirectory,
-			path.join(os.tmpdir(), 'contract-source-8453-0x13375b79f3f1651ea317956686d2dcdf69e98ab1'),
+			blockscoutCacheDirectory,
+			path.join(
+				os.tmpdir(),
+				'contract-source-viewer-data',
+				'blockscout-8453-0x13375b79f3f1651ea317956686d2dcdf69e98ab1',
+			),
+		);
+		assert.strictEqual(
+			blockscanCacheDirectory,
+			path.join(
+				os.tmpdir(),
+				'contract-source-viewer-data',
+				'blockscan-1-0x0000000000000000000000000000000000000000',
+			),
 		);
 	});
 });

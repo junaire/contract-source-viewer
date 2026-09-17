@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.1.2] - 2026-09-17
+
+### Changed
+- Encode the source provider, chain ID, and address in temporary cache directory names without metadata files
+
 ## [1.1.1] - 2026-09-17
 
 ### Changed

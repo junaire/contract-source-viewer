@@ -11,17 +11,18 @@ export interface UserInput {
     address: string;
 }
 
-interface CacheMetadata {
-    chainId: string;
-    contractAddress: string;
-    provider: SourceProvider;
-    cachedAt: string;
-}
+const SOURCE_PROVIDERS: readonly SourceProvider[] = ['Blockscan', 'Blockscout'];
 
-const CACHE_METADATA_FILENAME = '.contract-source-viewer-cache.json';
-
-export function getContractCacheDirectory(chainId: string, contractAddress: string): string {
-    return path.join(os.tmpdir(), `contract-source-${chainId}-${contractAddress.toLowerCase()}`);
+export function getContractCacheDirectory(
+    provider: SourceProvider,
+    chainId: string,
+    contractAddress: string,
+): string {
+    return path.join(
+        os.tmpdir(),
+        'contract-source-viewer-data',
+        `${provider.toLowerCase()}-${chainId}-${contractAddress.toLowerCase()}`,
+    );
 }
 
 async function openContractDirectory(contractDir: string): Promise<void> {
@@ -32,37 +33,25 @@ export async function openCachedSource(
     chainId: string,
     contractAddress: string,
 ): Promise<SourceProvider | undefined> {
-    const contractDir = getContractCacheDirectory(chainId, contractAddress);
-    const metadataPath = path.join(contractDir, CACHE_METADATA_FILENAME);
+    for (const provider of SOURCE_PROVIDERS) {
+        const contractDir = getContractCacheDirectory(provider, chainId, contractAddress);
 
-    try {
-        const [metadataJson, entries] = await Promise.all([
-            fs.promises.readFile(metadataPath, 'utf8'),
-            fs.promises.readdir(contractDir),
-        ]);
-        const parsedMetadata: unknown = JSON.parse(metadataJson);
-        const hasSourceFiles = entries.some((entry) => entry !== CACHE_METADATA_FILENAME);
+        try {
+            const entries = await fs.promises.readdir(contractDir);
+            if (entries.length === 0) {
+                continue;
+            }
 
-        if (!parsedMetadata || typeof parsedMetadata !== 'object') {
-            return undefined;
+            await openContractDirectory(contractDir);
+            return provider;
+        } catch (error) {
+            if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+                throw error;
+            }
         }
-
-        const metadata = parsedMetadata as Partial<CacheMetadata>;
-        if (metadata.chainId !== chainId
-            || metadata.contractAddress?.toLowerCase() !== contractAddress.toLowerCase()
-            || !hasSourceFiles
-            || (metadata.provider !== 'Blockscan' && metadata.provider !== 'Blockscout')) {
-            return undefined;
-        }
-
-        await openContractDirectory(contractDir);
-        return metadata.provider;
-    } catch (error) {
-        if ((error as NodeJS.ErrnoException).code === 'ENOENT' || error instanceof SyntaxError) {
-            return undefined;
-        }
-        throw error;
     }
+
+    return undefined;
 }
 
 export async function showInputDialog(): Promise<UserInput | undefined> {
@@ -108,7 +97,7 @@ export async function showSourceCode(
         return;
     }
 
-    const contractDir = getContractCacheDirectory(chainId, contractAddress);
+    const contractDir = getContractCacheDirectory(provider, chainId, contractAddress);
     await fs.promises.rm(contractDir, { recursive: true, force: true });
     await fs.promises.mkdir(contractDir, { recursive: true });
 
@@ -121,17 +110,6 @@ export async function showSourceCode(
         await fs.promises.mkdir(path.dirname(filePath), { recursive: true });
         await fs.promises.writeFile(filePath, source.content);
     }
-
-    const metadata: CacheMetadata = {
-        chainId,
-        contractAddress: contractAddress.toLowerCase(),
-        provider,
-        cachedAt: new Date().toISOString(),
-    };
-    await fs.promises.writeFile(
-        path.join(contractDir, CACHE_METADATA_FILENAME),
-        JSON.stringify(metadata, null, 2),
-    );
 
     await openContractDirectory(contractDir);
 }
