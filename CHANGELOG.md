@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [1.1.0] - 2026-09-17
 
 ### Added
 - Support for 22 EVM networks
