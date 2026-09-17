@@ -15,9 +15,10 @@ A simple VSCode extension that allows you to fetch and view smart contract sourc
 - 📄 **Smart Parsing**: Handles both single-file and multi-file Solidity contracts
 - 🎨 **Syntax Highlighting**: Full Solidity syntax highlighting with VSCode's built-in support
 - 📁 **Project Structure**: Automatically creates proper folder structure for complex contracts
+- 💾 **Local Cache**: Reopens previously fetched contracts without another network request
 - ⚡ **Fast & Reliable**: Quick fetching with proper error handling
 - ✅ **Input Validation**: Validates chain IDs and contract addresses
-- 🔄 **Real-time Progress**: Progress indicators for all operations
+- 🔄 **Cancellable Progress**: Progress indicators with request cancellation
 
 ## 🚀 Quick Start
 

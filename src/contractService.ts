@@ -1,12 +1,18 @@
 import axios from 'axios';
 import { getBlockscoutUrl } from './chains';
 
+export type SourceProvider = 'Blockscan' | 'Blockscout';
+
 export interface ContractSourceResponse {
     result: string;
     status: string;
     message?: string;
     contractName?: string;
+    provider: SourceProvider;
 }
+
+const REQUEST_TIMEOUT_MS = 10000;
+const MAX_SOURCE_RESPONSE_BYTES = 20 * 1024 * 1024;
 
 interface BlockscoutAdditionalSource {
     file_path?: string | null;
@@ -52,6 +58,7 @@ export function normalizeBlockscoutResponse(response: BlockscoutSourceResponse):
     return {
         status: '1',
         contractName: response.name || undefined,
+        provider: 'Blockscout',
         result: JSON.stringify({
             language: response.language || undefined,
             sources,
@@ -60,12 +67,24 @@ export function normalizeBlockscoutResponse(response: BlockscoutSourceResponse):
     };
 }
 
-async function fetchBlockscanSource(chainId: string, address: string): Promise<ContractSourceResponse> {
+function isCancelled(error: unknown): boolean {
+    return axios.isCancel(error) || (axios.isAxiosError(error) && error.code === 'ERR_CANCELED');
+}
+
+export function isRequestCancelled(error: unknown): boolean {
+    return isCancelled(error);
+}
+
+async function fetchBlockscanSource(chainId: string, address: string, signal?: AbortSignal): Promise<ContractSourceResponse> {
     const url = `https://vscode.blockscan.com/srcapi/${chainId}/${address}`;
 
     try {
         const response = await axios.get<ContractSourceResponse>(url, {
-            timeout: 10000,
+            timeout: REQUEST_TIMEOUT_MS,
+            maxContentLength: MAX_SOURCE_RESPONSE_BYTES,
+            maxBodyLength: MAX_SOURCE_RESPONSE_BYTES,
+            maxRedirects: 3,
+            signal,
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
                 'Accept': 'application/json, text/plain, */*',
@@ -81,8 +100,11 @@ async function fetchBlockscanSource(chainId: string, address: string): Promise<C
             throw new Error('No source code found in Blockscan');
         }
 
-        return response.data;
+        return { ...response.data, provider: 'Blockscan' };
     } catch (error) {
+        if (isCancelled(error)) {
+            throw error;
+        }
         if (axios.isAxiosError(error)) {
             if (error.code === 'ECONNABORTED') {
                 throw new Error('Request timeout - the API took too long to respond');
@@ -98,12 +120,16 @@ async function fetchBlockscanSource(chainId: string, address: string): Promise<C
     }
 }
 
-async function fetchBlockscoutSource(baseUrl: string, address: string): Promise<ContractSourceResponse> {
+async function fetchBlockscoutSource(baseUrl: string, address: string, signal?: AbortSignal): Promise<ContractSourceResponse> {
     const url = `${baseUrl}/api/v2/smart-contracts/${address}`;
 
     try {
         const response = await axios.get<BlockscoutSourceResponse>(url, {
-            timeout: 10000,
+            timeout: REQUEST_TIMEOUT_MS,
+            maxContentLength: MAX_SOURCE_RESPONSE_BYTES,
+            maxBodyLength: MAX_SOURCE_RESPONSE_BYTES,
+            maxRedirects: 3,
+            signal,
             headers: {
                 'Accept': 'application/json',
             },
@@ -111,6 +137,9 @@ async function fetchBlockscoutSource(baseUrl: string, address: string): Promise<
 
         return normalizeBlockscoutResponse(response.data);
     } catch (error) {
+        if (isCancelled(error)) {
+            throw error;
+        }
         if (axios.isAxiosError(error)) {
             if (error.code === 'ECONNABORTED') {
                 throw new Error('Blockscout request timed out');
@@ -124,12 +153,15 @@ async function fetchBlockscoutSource(baseUrl: string, address: string): Promise<
     }
 }
 
-export async function fetchContractSource(chainId: string, address: string): Promise<ContractSourceResponse> {
+export async function fetchContractSource(chainId: string, address: string, signal?: AbortSignal): Promise<ContractSourceResponse> {
     let blockscanError: unknown;
 
     try {
-        return await fetchBlockscanSource(chainId, address);
+        return await fetchBlockscanSource(chainId, address, signal);
     } catch (error) {
+        if (isCancelled(error)) {
+            throw error;
+        }
         blockscanError = error;
     }
 
@@ -139,7 +171,7 @@ export async function fetchContractSource(chainId: string, address: string): Pro
     }
 
     try {
-        return await fetchBlockscoutSource(blockscoutUrl, address);
+        return await fetchBlockscoutSource(blockscoutUrl, address, signal);
     } catch (blockscoutError) {
         const blockscanMessage = blockscanError instanceof Error ? blockscanError.message : String(blockscanError);
         const blockscoutMessage = blockscoutError instanceof Error ? blockscoutError.message : String(blockscoutError);

@@ -14,9 +14,7 @@
     "vscode": "^1.104.0"
   },
   "categories": [
-    "Other",
-    "Debuggers",
-    "Extension Packs"
+    "Other"
   ],
   "keywords": [
     "blockchain",
@@ -75,8 +73,8 @@
     "@types/vscode": "^1.104.0",
     "@typescript-eslint/eslint-plugin": "^8.42.0",
     "@typescript-eslint/parser": "^8.42.0",
-    "@vscode/test-cli": "^0.0.11",
-    "@vscode/test-electron": "^2.5.2",
+    "@vscode/test-cli": "^0.0.15",
+    "@vscode/test-electron": "^3.1.0",
     "@vscode/vsce": "^3.6.0",
     "esbuild": "^0.25.9",
     "eslint": "^9.34.0",
@@ -84,6 +82,6 @@
     "typescript": "^5.9.2"
   },
   "dependencies": {
-    "axios": "^1.12.2"
+    "axios": "^1.20.0"
   }
 }
