@@ -11,6 +11,7 @@ A simple VSCode extension that allows you to fetch and view smart contract sourc
 ## ✨ Features
 
 - 🔍 **Multi-Chain Support**: Fetch contracts from 22 EVM networks
+- 🔁 **Explorer Fallback**: Falls back to Blockscout when Blockscan has no source code
 - 📄 **Smart Parsing**: Handles both single-file and multi-file Solidity contracts
 - 🎨 **Syntax Highlighting**: Full Solidity syntax highlighting with VSCode's built-in support
 - 📁 **Project Structure**: Automatically creates proper folder structure for complex contracts
@@ -42,6 +43,9 @@ A simple VSCode extension that allows you to fetch and view smart contract sourc
 | Monad | 143 | Stable | 988 |
 | Plasma | 9745 | Robinhood Chain | 4663 |
 | Sepolia Testnet | 11155111 | Base Sepolia | 84532 |
+
+Blockscout fallback is available for Ethereum, Optimism, Polygon, Arbitrum One,
+Base, World Chain, Unichain, Sepolia, and Base Sepolia.
 
 
 ### Development Setup

@@ -21,6 +21,16 @@ function isValidSourceEntry(source: unknown): source is SoliditySource {
     return Boolean(source && typeof source === 'object' && typeof (source as SoliditySource).content === 'string');
 }
 
+function normalizeFilename(filename: string): string {
+    const parts = filename
+        .replace(/\\/g, '/')
+        .replace(/^[A-Za-z]:\//, '')
+        .split('/')
+        .filter((part) => part && part !== '.' && part !== '..');
+
+    return parts.join('/') || 'Contract.sol';
+}
+
 function collectSources(parsedJson: unknown): Record<string, SoliditySource> {
     if (!parsedJson || typeof parsedJson !== 'object') {
         return {};
@@ -72,7 +82,7 @@ export function parseSourceCode(apiResponse: ContractSourceResponse): ParsedSour
     for (const [filename, source] of Object.entries(sources)) {
         if (source && source.content) {
             parsedSources.push({
-                filename: filename.replace(/^\//, ''), // Remove leading slash
+                filename: normalizeFilename(filename),
                 content: source.content
             });
         }

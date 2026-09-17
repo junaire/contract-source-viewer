@@ -3,8 +3,8 @@ import * as assert from 'assert';
 // You can import and use all API from the 'vscode' module
 // as well as import your extension to test it
 import * as vscode from 'vscode';
-import { supportedChains } from '../chains';
-import { ContractSourceResponse } from '../contractService';
+import { getBlockscoutUrl, supportedChains } from '../chains';
+import { ContractSourceResponse, normalizeBlockscoutResponse } from '../contractService';
 import { parseSourceCode } from '../sourceParser';
 // import * as myExtension from '../../extension';
 
@@ -35,6 +35,14 @@ suite('Supported chains', () => {
 		assert.ok(chainIds.includes('84532'), 'Base Sepolia should be supported');
 		assert.ok(!chainIds.includes('250'), 'unsupported Fantom should not be offered');
 	});
+
+	test('configures Blockscout only for chains with a working v2 API', () => {
+		assert.strictEqual(supportedChains.filter((chain) => chain.blockscoutUrl).length, 9);
+		assert.strictEqual(getBlockscoutUrl('8453'), 'https://base.blockscout.com');
+		assert.strictEqual(getBlockscoutUrl('1'), 'https://eth.blockscout.com');
+		assert.strictEqual(getBlockscoutUrl('59144'), undefined);
+		assert.strictEqual(getBlockscoutUrl('4663'), undefined);
+	});
 });
 
 suite('Source parser', () => {
@@ -53,5 +61,45 @@ suite('Source parser', () => {
 		assert.strictEqual(parsed.length, 2);
 		assert.strictEqual(parsed[0].filename, 'Context.sol');
 		assert.ok(parsed.some((source) => source.filename === 'lib/Helper.sol'));
+	});
+
+	test('normalizes a single-file Blockscout Vyper response', () => {
+		const response = normalizeBlockscoutResponse({
+			name: 'Subsquid',
+			language: 'vyper',
+			source_code: '#pragma version ^0.3.9',
+			additional_sources: [],
+		});
+
+		const parsed = parseSourceCode(response);
+
+		assert.deepStrictEqual(parsed, [{
+			filename: 'Subsquid.vy',
+			content: '#pragma version ^0.3.9',
+		}]);
+	});
+
+	test('normalizes Blockscout multi-file responses and safe paths', () => {
+		const response = normalizeBlockscoutResponse({
+			name: 'Example',
+			language: 'solidity',
+			file_path: '/workspace/contracts/Example.sol',
+			source_code: 'contract Example {}',
+			additional_sources: [{
+				file_path: '../lib/Helper.sol',
+				source_code: 'library Helper {}',
+			}],
+			compiler_settings: { optimizer: { enabled: true } },
+		});
+
+		const parsed = parseSourceCode(response);
+
+		assert.ok(parsed.some((source) => source.filename === 'workspace/contracts/Example.sol'));
+		assert.ok(parsed.some((source) => source.filename === 'lib/Helper.sol'));
+		assert.ok(parsed.some((source) => source.filename === 'settings.json'));
+	});
+
+	test('rejects Blockscout responses without source code', () => {
+		assert.throws(() => normalizeBlockscoutResponse({}), /No source code found in Blockscout/);
 	});
 });

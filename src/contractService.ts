@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { getBlockscoutUrl } from './chains';
 
 export interface ContractSourceResponse {
     result: string;
@@ -7,7 +8,59 @@ export interface ContractSourceResponse {
     contractName?: string;
 }
 
-export async function fetchContractSource(chainId: string, address: string): Promise<ContractSourceResponse> {
+interface BlockscoutAdditionalSource {
+    file_path?: string | null;
+    source_code?: string | null;
+}
+
+export interface BlockscoutSourceResponse {
+    name?: string | null;
+    language?: string | null;
+    file_path?: string | null;
+    source_code?: string | null;
+    additional_sources?: BlockscoutAdditionalSource[] | null;
+    compiler_settings?: Record<string, unknown> | null;
+}
+
+function sourceExtension(language?: string | null): string {
+    return language?.toLowerCase() === 'vyper' ? 'vy' : 'sol';
+}
+
+function fallbackFilename(response: BlockscoutSourceResponse, index?: number): string {
+    const contractName = response.name?.trim() || 'Contract';
+    const suffix = index === undefined ? '' : `-${index}`;
+    return `${contractName}${suffix}.${sourceExtension(response.language)}`;
+}
+
+export function normalizeBlockscoutResponse(response: BlockscoutSourceResponse): ContractSourceResponse {
+    const sources: Record<string, { content: string }> = {};
+
+    if (response.source_code) {
+        sources[response.file_path || fallbackFilename(response)] = { content: response.source_code };
+    }
+
+    for (const [index, source] of (response.additional_sources || []).entries()) {
+        if (source.source_code) {
+            sources[source.file_path || fallbackFilename(response, index + 1)] = { content: source.source_code };
+        }
+    }
+
+    if (Object.keys(sources).length === 0) {
+        throw new Error('No source code found in Blockscout');
+    }
+
+    return {
+        status: '1',
+        contractName: response.name || undefined,
+        result: JSON.stringify({
+            language: response.language || undefined,
+            sources,
+            settings: response.compiler_settings || undefined,
+        }),
+    };
+}
+
+async function fetchBlockscanSource(chainId: string, address: string): Promise<ContractSourceResponse> {
     const url = `https://vscode.blockscan.com/srcapi/${chainId}/${address}`;
 
     try {
@@ -25,7 +78,7 @@ export async function fetchContractSource(chainId: string, address: string): Pro
         }
 
         if (!response.data.result) {
-            throw new Error('No source code found for this contract');
+            throw new Error('No source code found in Blockscan');
         }
 
         return response.data;
@@ -42,5 +95,54 @@ export async function fetchContractSource(chainId: string, address: string): Pro
             }
         }
         throw error;
+    }
+}
+
+async function fetchBlockscoutSource(baseUrl: string, address: string): Promise<ContractSourceResponse> {
+    const url = `${baseUrl}/api/v2/smart-contracts/${address}`;
+
+    try {
+        const response = await axios.get<BlockscoutSourceResponse>(url, {
+            timeout: 10000,
+            headers: {
+                'Accept': 'application/json',
+            },
+        });
+
+        return normalizeBlockscoutResponse(response.data);
+    } catch (error) {
+        if (axios.isAxiosError(error)) {
+            if (error.code === 'ECONNABORTED') {
+                throw new Error('Blockscout request timed out');
+            }
+            if (error.response?.status === 404) {
+                throw new Error('Contract source not found in Blockscout');
+            }
+            throw new Error(`Blockscout request failed: ${error.message}`);
+        }
+        throw error;
+    }
+}
+
+export async function fetchContractSource(chainId: string, address: string): Promise<ContractSourceResponse> {
+    let blockscanError: unknown;
+
+    try {
+        return await fetchBlockscanSource(chainId, address);
+    } catch (error) {
+        blockscanError = error;
+    }
+
+    const blockscoutUrl = getBlockscoutUrl(chainId);
+    if (!blockscoutUrl) {
+        throw blockscanError;
+    }
+
+    try {
+        return await fetchBlockscoutSource(blockscoutUrl, address);
+    } catch (blockscoutError) {
+        const blockscanMessage = blockscanError instanceof Error ? blockscanError.message : String(blockscanError);
+        const blockscoutMessage = blockscoutError instanceof Error ? blockscoutError.message : String(blockscoutError);
+        throw new Error(`${blockscanMessage}; ${blockscoutMessage}`);
     }
 }
