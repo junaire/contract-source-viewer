@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.1.1] - 2026-09-17
+
+### Changed
+- Store fetched source caches in the system temporary directory
+
+### Fixed
+- Retry transient Blockscout TLS connection failures with an IPv4 fallback
+
 ## [1.1.0] - 2026-09-17
 
 ### Added

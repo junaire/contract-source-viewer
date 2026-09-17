@@ -13,6 +13,7 @@ export interface ContractSourceResponse {
 
 const REQUEST_TIMEOUT_MS = 10000;
 const MAX_SOURCE_RESPONSE_BYTES = 20 * 1024 * 1024;
+const BLOCKSCOUT_RETRY_DELAYS_MS = [250, 750];
 
 interface BlockscoutAdditionalSource {
     file_path?: string | null;
@@ -71,6 +72,52 @@ function isCancelled(error: unknown): boolean {
     return axios.isCancel(error) || (axios.isAxiosError(error) && error.code === 'ERR_CANCELED');
 }
 
+export function isRetryableBlockscoutError(error: unknown): boolean {
+    if (!axios.isAxiosError(error)) {
+        return false;
+    }
+
+    if (error.response) {
+        return error.response.status === 408
+            || error.response.status === 429
+            || error.response.status >= 500;
+    }
+
+    const retryableCodes = new Set([
+        'ECONNABORTED',
+        'ECONNREFUSED',
+        'ECONNRESET',
+        'EHOSTUNREACH',
+        'EAI_AGAIN',
+        'ENETUNREACH',
+        'ERR_NETWORK',
+        'ETIMEDOUT',
+    ]);
+
+    return retryableCodes.has(error.code || '')
+        || error.message.includes('before secure TLS connection was established');
+}
+
+async function waitForRetry(delayMs: number, signal?: AbortSignal): Promise<void> {
+    await new Promise<void>((resolve, reject) => {
+        if (signal?.aborted) {
+            reject(new axios.CanceledError());
+            return;
+        }
+
+        const onAbort = () => {
+            clearTimeout(timeout);
+            reject(new axios.CanceledError());
+        };
+        const timeout = setTimeout(() => {
+            signal?.removeEventListener('abort', onAbort);
+            resolve();
+        }, delayMs);
+
+        signal?.addEventListener('abort', onAbort, { once: true });
+    });
+}
+
 export function isRequestCancelled(error: unknown): boolean {
     return isCancelled(error);
 }
@@ -120,37 +167,51 @@ async function fetchBlockscanSource(chainId: string, address: string, signal?: A
     }
 }
 
-async function fetchBlockscoutSource(baseUrl: string, address: string, signal?: AbortSignal): Promise<ContractSourceResponse> {
+export async function fetchBlockscoutSource(baseUrl: string, address: string, signal?: AbortSignal): Promise<ContractSourceResponse> {
     const url = `${baseUrl}/api/v2/smart-contracts/${address}`;
+    let lastError: unknown;
 
-    try {
-        const response = await axios.get<BlockscoutSourceResponse>(url, {
-            timeout: REQUEST_TIMEOUT_MS,
-            maxContentLength: MAX_SOURCE_RESPONSE_BYTES,
-            maxBodyLength: MAX_SOURCE_RESPONSE_BYTES,
-            maxRedirects: 3,
-            signal,
-            headers: {
-                'Accept': 'application/json',
-            },
-        });
+    for (let attempt = 0; attempt <= BLOCKSCOUT_RETRY_DELAYS_MS.length; attempt += 1) {
+        try {
+            const response = await axios.get<BlockscoutSourceResponse>(url, {
+                timeout: REQUEST_TIMEOUT_MS,
+                maxContentLength: MAX_SOURCE_RESPONSE_BYTES,
+                maxBodyLength: MAX_SOURCE_RESPONSE_BYTES,
+                maxRedirects: 3,
+                signal,
+                ...(attempt > 0 ? { family: 4 as const } : {}),
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
+                    'Accept': 'application/json',
+                },
+            });
 
-        return normalizeBlockscoutResponse(response.data);
-    } catch (error) {
-        if (isCancelled(error)) {
-            throw error;
-        }
-        if (axios.isAxiosError(error)) {
-            if (error.code === 'ECONNABORTED') {
-                throw new Error('Blockscout request timed out');
+            return normalizeBlockscoutResponse(response.data);
+        } catch (error) {
+            if (isCancelled(error)) {
+                throw error;
             }
-            if (error.response?.status === 404) {
-                throw new Error('Contract source not found in Blockscout');
+
+            lastError = error;
+            if (!isRetryableBlockscoutError(error) || attempt === BLOCKSCOUT_RETRY_DELAYS_MS.length) {
+                break;
             }
-            throw new Error(`Blockscout request failed: ${error.message}`);
+
+            await waitForRetry(BLOCKSCOUT_RETRY_DELAYS_MS[attempt], signal);
         }
-        throw error;
     }
+
+    if (axios.isAxiosError(lastError)) {
+        if (lastError.code === 'ECONNABORTED') {
+            throw new Error('Blockscout request timed out');
+        }
+        if (lastError.response?.status === 404) {
+            throw new Error('Contract source not found in Blockscout');
+        }
+        throw new Error(`Blockscout request failed: ${lastError.message}`);
+    }
+
+    throw lastError;
 }
 
 export async function fetchContractSource(chainId: string, address: string, signal?: AbortSignal): Promise<ContractSourceResponse> {

@@ -12,7 +12,7 @@ export function activate(context: vscode.ExtensionContext) {
             }
 
             const { chainId, address } = input;
-            const cachedProvider = await openCachedSource(context.globalStorageUri, chainId, address);
+            const cachedProvider = await openCachedSource(chainId, address);
             if (cachedProvider) {
                 vscode.window.showInformationMessage(`Opened cached source originally fetched from ${cachedProvider}.`);
                 return;
@@ -42,7 +42,6 @@ export function activate(context: vscode.ExtensionContext) {
                         parsedSources,
                         chainId,
                         address,
-                        context.globalStorageUri,
                         apiResponse.provider,
                         cancellationToken,
                     );

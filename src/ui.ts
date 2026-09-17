@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { ParsedSource } from './sourceParser';
+import * as os from 'os';
 import * as fs from 'fs';
 import * as path from 'path';
 import { supportedChains } from './chains';
@@ -19,8 +20,8 @@ interface CacheMetadata {
 
 const CACHE_METADATA_FILENAME = '.contract-source-viewer-cache.json';
 
-function getContractDirectory(storageUri: vscode.Uri, chainId: string, contractAddress: string): string {
-    return path.join(storageUri.fsPath, 'contracts', chainId, contractAddress.toLowerCase());
+export function getContractCacheDirectory(chainId: string, contractAddress: string): string {
+    return path.join(os.tmpdir(), `contract-source-${chainId}-${contractAddress.toLowerCase()}`);
 }
 
 async function openContractDirectory(contractDir: string): Promise<void> {
@@ -28,11 +29,10 @@ async function openContractDirectory(contractDir: string): Promise<void> {
 }
 
 export async function openCachedSource(
-    storageUri: vscode.Uri,
     chainId: string,
     contractAddress: string,
 ): Promise<SourceProvider | undefined> {
-    const contractDir = getContractDirectory(storageUri, chainId, contractAddress);
+    const contractDir = getContractCacheDirectory(chainId, contractAddress);
     const metadataPath = path.join(contractDir, CACHE_METADATA_FILENAME);
 
     try {
@@ -100,7 +100,6 @@ export async function showSourceCode(
     sources: ParsedSource[],
     chainId: string,
     contractAddress: string,
-    storageUri: vscode.Uri,
     provider: SourceProvider,
     cancellationToken?: vscode.CancellationToken,
 ): Promise<void> {
@@ -109,7 +108,7 @@ export async function showSourceCode(
         return;
     }
 
-    const contractDir = getContractDirectory(storageUri, chainId, contractAddress);
+    const contractDir = getContractCacheDirectory(chainId, contractAddress);
     await fs.promises.rm(contractDir, { recursive: true, force: true });
     await fs.promises.mkdir(contractDir, { recursive: true });
 
